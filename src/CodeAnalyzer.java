@@ -9,22 +9,38 @@ public class CodeAnalyzer {
         public int switchCount;
         public int caseCount;
         public int catchCount;
+        public int logicalOpCount; // counts && and || operators
 
         //Calculation of total decision points:
         public int getDecisionCount(){
-            return ifCount + loopCount + switchCount + caseCount + catchCount;
+            return ifCount + loopCount + switchCount + caseCount + catchCount + logicalOpCount;
         }
     }
 
     // Analyzing lines of the code and count decision structures:
     public AnalysisResult analyze(List<String> lines){
         AnalysisResult result = new AnalysisResult();
+        boolean inBlockComment = false;
 
         // We iterate through each line of the file
         for (String line : lines) {
 
-            // Remove leading and trailing spaces
-            String trimmed = line.trim();
+            String noStrings = line.replaceAll("\"(\\\\.|[^\\\"])*\"", "");
+            String trimmed = noStrings.trim();
+
+            if (inBlockComment) {
+                if (trimmed.contains("*/")) {
+                    inBlockComment = false;
+                }
+                continue;
+            }
+
+            if (trimmed.startsWith("/*")) {
+                if (!trimmed.contains("*/")) {
+                    inBlockComment = true;
+                }
+                continue;
+            }
 
             // Ignore empty lines
             if (trimmed.isEmpty()) {
@@ -63,6 +79,11 @@ public class CodeAnalyzer {
             if (trimmed.startsWith("catch")) {
                 result.catchCount++;
             }
+
+            // Count logical operators used in conditions
+            int andCount = trimmed.split("&&", -1).length - 1;
+            int orCount = trimmed.split("\\|\\|", -1).length - 1;
+            result.logicalOpCount += andCount + orCount;
         }
 
 
