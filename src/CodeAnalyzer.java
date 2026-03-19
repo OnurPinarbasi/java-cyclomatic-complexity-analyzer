@@ -25,22 +25,40 @@ public class CodeAnalyzer {
         // We iterate through each line of the file
         for (String line : lines) {
 
-            String noStrings = line.replaceAll("\"(\\\\.|[^\\\"])*\"", "");
-            String trimmed = noStrings.trim();
-
+            // --- Remove block comments (supports inline and multi-line) ---
+            String working = line;
             if (inBlockComment) {
-                if (trimmed.contains("*/")) {
+                int endIdx = working.indexOf("*/");
+                if (endIdx != -1) {
+                    // exit block comment and keep the rest of the line after */
+                    working = working.substring(endIdx + 2);
                     inBlockComment = false;
+                } else {
+                    // still inside block comment, skip entire line
+                    continue;
                 }
-                continue;
             }
 
-            if (trimmed.startsWith("/*")) {
-                if (!trimmed.contains("*/")) {
+            // handle possible block comments starting in this line (can be inline)
+            while (true) {
+                int startIdx = working.indexOf("/*");
+                if (startIdx == -1) break;
+
+                int endIdx = working.indexOf("*/", startIdx + 2);
+                if (endIdx != -1) {
+                    // remove the inline block comment and keep surrounding code
+                    working = working.substring(0, startIdx) + working.substring(endIdx + 2);
+                } else {
+                    // block comment starts here and continues to next lines
+                    working = working.substring(0, startIdx);
                     inBlockComment = true;
+                    break;
                 }
-                continue;
             }
+
+            // remove string literals so keywords inside strings are ignored
+            String noStrings = working.replaceAll("\"(\\\\.|[^\\\"])*\"", "");
+            String trimmed = noStrings.trim();
 
             // Ignore empty lines
             if (trimmed.isEmpty()) {
@@ -49,11 +67,6 @@ public class CodeAnalyzer {
 
             // Ignore single-line comments
             if (trimmed.startsWith("//")) {
-                continue;
-            }
-
-            // Ignore block comments that start and end on the same line
-            if (trimmed.startsWith("/*") && trimmed.endsWith("*/")) {
                 continue;
             }
 
